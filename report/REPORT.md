@@ -6,94 +6,115 @@
 - **Link repo:** https://github.com/ChunHieu/CaoDucHieu-2A202602701-Track4-Day21
 - **Topic:** A — LiDAR-camera projection QA
 - **Dataset:** data/kitti_mini, data/synthetic, data/nuscenes_mini_subset
-- **Các frame đã dùng:** 000011, 000021, 000010, 000049, 000007, scene-0103_010, 000000
+- **Các frame đã dùng:** 000008, 000011, 000049, scene-0103_010, 000000
 
 ---
 
 ## 1. Claim
 
-Độ lệch calibration góc xoay quanh trục thẳng đứng (Yaw drift) từ $1.0^\circ$ trở lên gây dịch chuyển hình chiếu trung bình $15.41\text{ px}$, làm sụt giảm trên $41.6\%$ lượng điểm LiDAR rơi đúng vào 2D bounding box của các vật thể ở cự ly xa ($> 30\text{ m}$), trong khi vật thể ở cự ly gần ($< 15\text{ m}$) chỉ mất $10.9\%$ điểm; sự bất đối xứng về khoảng cách này có thể được giám sát tự động theo thời gian thực bằng chỉ số căn chỉnh cạnh (Edge Alignment Score - EAS) với ngưỡng cảnh báo $\text{EAS} < 0.635$.
+Độ lệch calibration góc xoay quanh trục thẳng đứng (Yaw drift) từ $1.0^\circ$ trở lên làm tỉ lệ điểm LiDAR của người đi bộ (vật thể hẹp/xa) rơi đúng vào 2D bounding box giảm mạnh từ $99.5\%$ xuống $77.4\%$ ở $1.0^\circ$ và chỉ còn $21.2\%$ ở $3.0^\circ$ (trên frame 000011), trong khi với xe con (vật thể rộng) chỉ giảm nhẹ từ $99.6\%$ xuống $98.6\%$ ở $1.0^\circ$ (trên frame 000008). Sự suy giảm này được kiểm chứng đồng thời bằng cả in-box hit ratio và chỉ số căn chỉnh cạnh (Edge Alignment Score - EAS) với ngưỡng cảnh báo $\text{EAS} < 0.635$.
 
 ---
 
 ## 2. Evidence
 
-Thực nghiệm sweep được thực hiện trên 5 frame đa dạng của dataset KITTI (`000011`, `000021`, `000010`, `000049`, `000007`) với 39 cấu hình biến thiên extrinsic (Yaw, Pitch, Roll và độ dịch chuyển tịnh tiến $t_x, t_y, t_z$). Số liệu chi tiết được lưu trong file `results/calibration_drift_benchmark.csv`.
+Thực nghiệm chính khảo sát sự suy giảm của phép chiếu khi thay đổi góc Yaw trên 3 frame đại diện: đông xe (`000008`), nhiều người đi bộ (`000011`), và nhiều vật bị che khuất (`000049`). Kết quả được lưu tại `results/yaw_perturb_sweep.csv` và `results/calibration_drift_benchmark.csv`.
 
-### Bảng số liệu benchmark tổng hợp theo mức Perturbation
+### Bảng 1: Tỉ lệ điểm của vật thể nằm trong 2D Box (hit_ratio) theo góc lệch Yaw
 
-| Cấu hình / Mức perturb | Pixel Shift TB (px) | Retention Near (<15m) | Retention Far (>30m) | Retention Tổng thể | EAS Score | Ghi chú |
-|---|---|---|---|---|---|---|
-| Baseline (Không lệch) | 0.00 px | 100.0% | 100.0% | 100.0% | 0.6571 | Calibration chuẩn |
-| Yaw +0.5° | 7.73 px | 94.45% | 79.31% | 89.87% | 0.6449 | Vật xa mất 20.7% điểm |
-| Yaw +1.0° | 15.41 px | 89.11% | 58.33% | 80.33% | 0.6352 | Vật xa mất 41.7% điểm |
-| Yaw +1.5° | 23.07 px | 83.87% | 43.08% | 70.44% | 0.6269 | Rơi vào vùng nguy hiểm |
-| Yaw +2.0° | 30.69 px | 78.49% | 33.58% | 62.20% | 0.6232 | Vật xa mất 66.4% điểm |
-| Pitch +1.0° | 13.15 px | 91.61% | 53.13% | 78.85% | 0.5949 | Lệch cao độ, EAS tụt mạnh |
-| Pitch +1.5° | 19.71 px | 87.32% | 37.68% | 70.11% | 0.5667 | Mất điểm trên trần xe |
-| Roll +1.0° | 5.26 px | 95.68% | 86.50% | 94.10% | 0.6597 | Ít nhạy hơn Yaw/Pitch |
-| Translation X +10 cm | 2.74 px | 98.16% | 99.01% | 98.32% | 0.6561 | Lệch ngang rất nhỏ ở cự ly xa |
-| Translation Y +10 cm | 6.18 px | 95.83% | 93.00% | 94.72% | 0.6500 | Lệch cao độ tịnh tiến |
-| Translation Z +10 cm | 6.20 px | 97.01% | 97.74% | 97.03% | 0.6591 | Lệch dọc trục xe |
+| yaw_deg | Frame 000008 (đông xe) | Frame 000011 (nhiều người đi bộ) | Frame 000049 (nhiều vật bị che) | Ghi chú |
+|---|---|---|---|---|
+| 0.0° | 0.9963 (99.6%) | 0.9945 (99.5%) | 0.9925 (99.3%) | Calibration chuẩn (mức sàn nhãn) |
+| 0.5° | 0.9957 (99.6%) | 0.9188 (91.9%) | 0.9746 (97.5%) | Người đi bộ bắt đầu mất điểm |
+| 1.0° | 0.9862 (98.6%) | 0.7744 (77.4%) | 0.9350 (93.5%) | Người đi bộ mất 22.1% điểm |
+| 2.0° | 0.9481 (94.8%) | 0.4544 (45.4%) | 0.8474 (84.7%) | Người đi bộ mất hơn 54% điểm |
+| 3.0° | 0.9098 (91.0%) | 0.2123 (21.2%) | 0.7432 (74.3%) | Mất liên kết 78.8% điểm người đi bộ |
 
-![Biểu đồ tổng hợp](../results/figures/drift_benchmark_curves.png)
+![Yaw Sweep Curves](../results/figures/yaw_sweep.png)
 
-![Demo Overlay chuẩn](../results/figures/demo_overlay_kitti_000011.png)
+![Biểu đồ phân tích tổng hợp đa tham số](../results/figures/drift_benchmark_curves.png)
+
+![Demo Overlay chuẩn KITTI 000011](../results/figures/demo_overlay_kitti_000011.png)
+
+### [B5] Bonus: So sánh giữa KITTI (64 beam) và nuScenes (32 beam)
+- **Tiêu cự camera:** Camera KITTI có $f_x \approx 721.5\text{ px}$ (ảnh $1242 \times 375$), trong khi camera trước nuScenes có tiêu cự lớn hơn nhiều: $f_x \approx 1252.8\text{ px}$ (ảnh $1600 \times 900$).
+- **Độ nhạy góc lệch:** Do tiêu cự lớn hơn, cùng độ lệch yaw $1.0^\circ$, điểm chiếu trên nuScenes trượt tới $\Delta u \approx 1252.8 \cdot \tan(1^\circ) \approx 21.9\text{ px}$ (so với $12.6\text{ px}$ trên KITTI, tăng $73.8\%$). Xét theo tỉ lệ chiều rộng ảnh, nuScenes trượt $21.9 / 1600 = 1.37\%$ chiều rộng ảnh, cao hơn mức $1.01\%$ của KITTI.
+- **Mật độ điểm:** LiDAR nuScenes chỉ có 32 beam (34.720 điểm/frame), chỉ có $9.0\%$ điểm rơi vào khung ảnh trước, thưa hơn nhiều so với KITTI ($18.5\%$ điểm vào ảnh), khiến việc mất điểm ở cự ly xa trên nuScenes diễn ra nghiêm trọng hơn.
+
+### [B6] Bonus: Phát hiện toàn bộ lỗi cài sẵn trong data/synthetic
+Bằng lệnh `python -m starter.data_health --data-root data/synthetic` và kiểm tra file `timestamps.txt`:
+
+| Lỗi cài sẵn | Frame bị lỗi | Cách phát hiện và minh chứng số liệu |
+|---|---|---|
+| Mất điểm đột ngột (Point drop) | Frame `000003` | Số điểm giảm xuống còn $n = 22.063$ (các frame khác đều có $\sim 23.800$ điểm, tức mất $1.700$ điểm do sector/beam dropout). |
+| Bỏ khung hình / Nhảy timestamp | Frame `000003` | File `timestamps.txt` ghi: frame 0 (0.0s), frame 1 (0.1s), frame 2 (0.2s), frame 3 (0.4s), frame 4 (0.5s). Khoảng cách giữa frame 2 và 3 là $0.2\text{ s}$ thay vì $0.1\text{ s}$ (bị drop mất frame ở $0.3\text{ s}$). |
+| Điểm lỗi (NaN/Inf values) | Tất cả các frame (000000 đến 000004) | Cột `invalid` của cả 5 frame đều là $0.10\%$ (mỗi frame có khoảng 24 điểm tọa độ NaN). |
 
 ---
 
 ## 3. Failure case
 
-Trong quá trình stress test và chiếu điểm LiDAR lên ảnh 2D, hai failure case nghiêm trọng đã được phát hiện và ghi nhận bằng hình ảnh:
+### Failure Case 1: Lỗi đồng bộ thời gian (Time) trên nuScenes khi tắt bù chuyển động
+![Failure Time](../results/figures/fail_01_nusc_no_ego_motion.png)
 
-1. **Failure Case 1 — Parallax Bleed & Misalignment (Hình `fail_01_occlusion_parallax_bleed.png`):**
-   - **Hiện tượng:** Khi góc Yaw lệch $+1.5^\circ$, các điểm phản xạ từ thân xe ở cự ly trung bình ($z = 26.6\text{ m}$) bị văng ra khỏi cạnh viền 2D box và rơi xuống mặt đường phía sau xe. Đồng thời, các điểm thuộc mặt đường phía sau xe lại chiếu lọt vào bên trong bounding box của chiếc xe.
-   - **Lớp lỗi debug:** **Geometry (Hình học)** và **Preprocess (Tiền xử lý)**.
-   - **Nguyên nhân gốc:** Thuật toán chiếu 2D trực tiếp không có cơ chế phân loại chiều sâu hoặc loại bỏ điểm che khuất (Occlusion Culling / Z-buffering). Phép chiếu thuần túy hình học biến không gian 3D thành mặt phẳng 2D làm mất thông tin thứ tự trước-sau, dẫn đến việc gán nhầm điểm nền (background road) cho vật thể phía trước (foreground vehicle).
+- **Trường hợp:** nuScenes, frame `scene-0103_010`, chiếu LiDAR lên camera trước khi tắt bù chuyển động xe (`--ignore-ego-motion`).
+- **Quan sát:** Số điểm chiếu hợp lệ vào ảnh giảm từ 3.120 xuống 2.911 điểm (mất 209 điểm, tương đương giảm $6.7\%$). Điểm phản xạ của các vật thể ở gần (chiếc xe bên trái) bị lệch khoảng $0.36\text{ m}$ (trôi $\sim 25\text{ px}$) so với đường viền thực tế của xe.
+- **Nguyên nhân:** Camera trước chụp sớm hơn LiDAR $35.6\text{ ms}$. Ở vận tốc xe chạy $36\text{ km/h}$ ($\approx 10\text{ m/s}$), xe đã di chuyển được $0.36\text{ m}$ trong khoảng trễ này. Nếu không dùng ego pose để bù chuyển động (deskew/ego-motion compensation), điểm LiDAR bị chiếu theo vị trí cũ của xe.
+- **Lớp debug:** **Time (Đồng bộ thời gian)**.
+- **Cách phát hiện khi chạy thật:** Giám sát trường `|timestamp_camera - timestamp_lidar|`. Kích hoạt cảnh báo nếu độ lệch thời gian vượt quá $10\text{ ms}$ khi xe di chuyển với tốc độ $> 20\text{ km/h}$.
 
-2. **Failure Case 2 — Far Range Point Cloud Sparsity (Hình `fail_02_far_distance_sparsity.png`):**
-   - **Hiện tượng:** Với người đi bộ ở cự ly xa ($z = 34.08\text{ m}$), chùm tia LiDAR chỉ bắn trúng 8 điểm. Khi lệch Yaw $1.0^\circ$, toàn bộ các điểm này trượt khỏi bounding box (retention chỉ còn $12.5\%$, và tụt về $0\%$ ở $1.5^\circ$), làm module sensor fusion mất hoàn toàn khả năng liên kết mục tiêu.
-   - **Lớp lỗi debug:** **Metric (Cách đo)** và **Geometry (Hình học)**.
-   - **Nguyên nhân gốc:** Mật độ điểm LiDAR tỉ lệ nghịch với bình phương khoảng cách ($1/z^2$), trong khi kích thước pixel của 2D box cũng thu nhỏ theo $1/z$. Độ nhạy của các vật thể ở xa với sai số góc là cực kỳ cao, khiến metric in-box retention bị biến thiên gián đoạn (nhảy bước từ có sang mất trắng).
+### Failure Case 2: Hiện tượng Parallax Bleed & Lỗi hình học che khuất
+![Failure Parallax](../results/figures/fail_01_occlusion_parallax_bleed.png)
 
-![Failure Case 1](../results/figures/fail_01_occlusion_parallax_bleed.png)
+- **Trường hợp:** KITTI, frame `000011`, khi calibration bị lệch Yaw $+1.5^\circ$.
+- **Quan sát:** $62\%$ điểm LiDAR của xe ô tô ở cự ly trung bình ($z = 26.6\text{ m}$) bị văng ra khỏi viền 2D box rơi xuống mặt đường phía sau, trong khi các tia LiDAR chiếu trúng mặt đường phía sau xe lại chui vào bên trong 2D box của xe.
+- **Nguyên nhân:** Thuật toán chiếu 2D trực tiếp không có mô hình phân loại độ sâu và loại bỏ điểm che khuất (Occlusion Culling / Z-buffering), làm mất thông tin thứ tự trước-sau trong không gian 3D.
+- **Lớp debug:** **Geometry (Hình học)** và **Preprocess (Tiền xử lý)**.
+- **Cách phát hiện khi chạy thật:** Kiểm tra phân bố phương sai độ sâu (depth variance) của các điểm nằm trong 2D box. Nếu có phân bố hai đỉnh (bimodal: vừa có điểm gần $<15\text{ m}$, vừa có điểm xa $>30\text{ m}$), đó là dấu hiệu của hiện tượng parallax bleed.
 
 ---
 
 ## 4. Khuyến nghị nếu triển khai thật
 
-- **Use-case mục tiêu:** Hệ thống hỗ trợ lái xe tự hành ADAS Level 2+/Level 3 và Robot tuần tra ngoài trời.
-- **Trade-off cốt lõi:**
-  - *Độ chính xác vs Độ trễ tính toán:* Việc chạy thuật toán kiểm tra từng điểm point-by-point trên CPU mất khoảng $15\text{ ms/frame}$. Để giữ pipeline fusion chạy ở tần số camera chuẩn ($30\text{ fps} \approx 33\text{ ms}$), không nên tính metric trên toàn bộ 100.000 điểm của point cloud mà chỉ nên lọc lấy tập silhouette điểm biên ($< 3.000$ điểm) hoặc subsample grid $4\times 4$.
-  - *Độ nhạy an toàn vs Cảnh báo giả:* Góc lệch xoay (Rotation) nguy hiểm gấp 5 lần so với sai lệch tịnh tiến (Translation). Hệ thống cần ưu tiên bù góc Yaw/Pitch.
-- **Chỉ số hệ thống cần ghi log và cảnh báo khi chạy thật:**
-  1. `EAS_score`: Nếu giá trị giảm dưới $0.62$ liên tục trong 10 frame liên tiếp $\rightarrow$ kích hoạt cờ `CALIBRATION_WARNING`.
-  2. `far_retention_index`: Theo dõi tỉ lệ điểm bám dính của các tracked vehicle ở cự ly $> 25\text{ m}$.
-  3. `chassis_shock_event`: Ghi nhận sự kiện gia tốc kế (IMU) khi xe đi qua ổ gà hoặc va quẹt nhẹ để kích hoạt kiểm tra calibration trực tuyến (Online Self-Calibration Trigger).
+- **Use-case mục tiêu:** Xe giao hàng tự hành trong đô thị (vận tốc $< 35\text{ km/h}$) và Robot tuần tra an ninh.
+- **Đánh đổi khi triển khai (Trade-offs):**
+  - *Tài nguyên vs Độ trễ:* Phép chiếu point-by-point trên toàn bộ $100.000$ điểm tốn khoảng $15\text{ ms}$ CPU. Để duy trì pipeline sensor fusion ở tần số $30\text{ fps}$ ($\sim 33\text{ ms}$ ngân sách cho toàn hệ thống), xe chỉ nên chạy kiểm tra độ căn chỉnh (QA calibration) định kỳ mỗi khi dừng đèn đỏ hoặc đi vào đoạn đường thẳng bằng phẳng. Trong lúc chạy tốc độ cao, chỉ cần subsample grid $4 \times 4$ trên tập điểm silhouette ($< 3.000$ điểm).
+  - *Độ an toàn:* Sai lệch góc xoay (Yaw/Pitch) nguy hiểm gấp 5 lần so với sai lệch tịnh tiến ($1.0^\circ$ tương đương trôi $15.4\text{ px}$, trong khi lệch ngang $10\text{ cm}$ chỉ trượt $2.7\text{ px}$). Do đó, bộ lọc Kalman ước lượng extrinsic phải đặt trọng số ưu tiên hiệu chỉnh góc quay trước.
+- **Chỉ số hệ thống cần ghi log và đặt ngưỡng cảnh báo:**
+  1. `hit_ratio_pedestrian`: Tính toán tỉ lệ điểm rơi vào box của người đi bộ. Nếu giá trị rơi xuống dưới $90\%$ trong 3 frame liên tiếp $\rightarrow$ kích hoạt cờ `RECALIBRATION_WARNING`.
+  2. `EAS_score`: Duy trì ngưỡng $\text{EAS} \ge 0.635$. Dưới ngưỡng này báo hiệu calibration đã bị trôi.
+  3. `bracket_shock_event`: Theo dõi gia tốc kế IMU khi xe va quẹt hoặc đi qua gờ giảm tốc lớn để tự động kích hoạt tiến trình online calibration.
 
 ---
 
 ## 5. Cách chạy lại
 
-Để tái tạo lại toàn bộ kết quả, số liệu CSV và các biểu đồ từ một repo sạch, chạy các lệnh sau:
+Toàn bộ kết quả từ repo sạch có thể được tái tạo lại bằng chuỗi lệnh sau:
 
 ```bash
 # 1. Kích hoạt môi trường và cài đặt thư viện
 pip install -r requirements.txt
 
-# 2. Kiểm tra tính toàn vẹn dữ liệu
+# 2. Kiểm tra tính toàn vẹn dữ liệu gốc
 python tools/verify_data.py --data-root data/kitti_mini
 python tools/verify_data.py --data-root data/nuscenes_mini_subset
 
-# 3. Chạy demo chiếu điểm LiDAR lên ảnh camera
+# 3. Tự kiểm tra 2 hàm hình học TODO(CP2)
+python -m src.test_projection
+
+# 4. Chạy demo chiếu điểm LiDAR lên ảnh camera
 python -m starter.projection --data-root data/synthetic --frame 000000
 python -m starter.projection --data-root data/kitti_mini --frame 000011
 python -m starter.projection --data-root data/nuscenes_mini_subset --frame scene-0103_010
 
-# 4. Chạy toàn bộ thí nghiệm benchmark và sinh biểu đồ/báo cáo
+# 5. Chạy thí nghiệm sweep yaw chính (theo codelab) và vẽ biểu đồ
+python -m src.exp_yaw_sweep --data-root data/kitti_mini --frames 000008 000011 000049
+python -m src.plot_yaw_sweep
+
+# 6. Chạy bộ benchmark mở rộng 39 cấu hình và sinh failure cases
 python -m src.drift_experiment
 
-# 5. Tự động kiểm tra tính hợp lệ trước khi nộp bài
+# 7. Kiểm tra tính hợp lệ trước khi nộp bài
 python tools/check_submission.py
 ```
 
@@ -103,4 +124,5 @@ python tools/check_submission.py
 
 | Công cụ | Dùng cho việc gì | Bạn đã kiểm chứng thế nào |
 |---|---|---|
-| Google Antigravity IDE (Gemini AI) | Hỗ trợ cấu trúc script thí nghiệm benchmark và tối ưu hóa ma trận biến đổi tọa độ | Tự chạy kiểm thử hàm `velo_to_cam` với điểm mẫu $(10, 0, 0)$ để xác nhận $z_{cam} \approx 10\text{ m}$, kiểm tra ảnh overlay trực quan và đối chiếu các con số trong CSV với lý thuyết quang học |
+| Google Antigravity IDE (Gemini AI) | Hỗ trợ cấu trúc script thí nghiệm `exp_yaw_sweep.py`, `drift_experiment.py`, tối ưu hóa phép nhân ma trận hình học | Chạy `python -m src.test_projection` vượt qua kiểm tra z_cam ≈ 9.73m và uv ≈ (614, 175); đối chiếu từng số liệu trong CSV với bảng chuẩn của đề bài |
+| Codelab Day 6 | Sử dụng khung code mẫu cho thí nghiệm yaw sweep | Đã chạy kiểm tra tái lập (rerun test) cho ra kết quả trùng khớp hoàn toàn, mở rộng thêm phân rã cự ly, tính điểm EAS và kiểm thử nuScenes |
